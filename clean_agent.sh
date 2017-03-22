@@ -1,5 +1,7 @@
 #!/bin/bash
 
+sudo su
+
 docker rm -f $(docker ps -qa)
 
 rm -rf /var/etcd/

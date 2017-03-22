@@ -8,4 +8,8 @@ curl https://raw.githubusercontent.com/gitlawr/sh/master/install_kubeadm_ubuntu1
 ```
 curl https://raw.githubusercontent.com/gitlawr/sh/master/clean_agent.sh |bash
 ```
+2. reset kubeadm minion
+```
+curl https://raw.githubusercontent.com/gitlawr/sh/master/reset_kubeadm_minion.sh |bash
+```
 

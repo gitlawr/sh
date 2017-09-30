@@ -13,3 +13,4 @@ curl https://raw.githubusercontent.com/gitlawr/sh/master/clean_agent.sh |bash
 curl https://raw.githubusercontent.com/gitlawr/sh/master/reset_kubeadm_minion.sh |bash
 ```
 
+ 

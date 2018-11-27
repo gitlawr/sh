@@ -1,0 +1,5 @@
+FROM aemneina/dns-hammer:v0.0.7
+
+COPY dns-query-dump.sh /dns-query-dump.sh
+
+CMD ["/dns-query-dump.sh"]

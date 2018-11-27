@@ -1,0 +1,5 @@
+FROM lawr/shell
+
+COPY dns-probe.sh /dns-probe.sh
+
+CMD "/dns-probe.sh"

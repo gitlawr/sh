@@ -9,6 +9,7 @@ DEFAULT_RANCHER_HOSTNAME=lawr.eng-cn.rancher.space
 
 #precheck
 echo "Pre-checking..."
+command -v rke >/dev/null 2>&1 || { echo >&2 "rke is required but it's not installed.  Please install it first."; exit 1; }
 command -v helm >/dev/null 2>&1 || { echo >&2 "helm(3) is required but it's not installed.  Please install it first."; exit 1; }
 command -v kubectl >/dev/null 2>&1 || { echo >&2 "kubectl is required but it's not installed.  Please install it first."; exit 1; }
 command -v aws >/dev/null 2>&1 || { echo >&2 "aws(cli) is required but it's not installed.  Please install it first."; exit 1; }

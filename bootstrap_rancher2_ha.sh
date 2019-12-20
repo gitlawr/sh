@@ -1,4 +1,4 @@
-#Script to bootstrap rancher 2.x HA in AWS
+# Script to bootstrap rancher 2.x HA in AWS
 set -e
 
 DEFAULT_RANCHER_VERSION=2.3.3
@@ -14,8 +14,8 @@ command -v kubectl >/dev/null 2>&1 || { echo >&2 "kubectl is required but it's n
 command -v aws >/dev/null 2>&1 || { echo >&2 "aws(cli) is required but it's not installed.  Please install it first."; exit 1; }
 aws sts get-caller-identity >/dev/null 2>&1 || ( echo "Unknown AWS identity. Please login to aws cli first." && exit 1 );
 
-rm ./cluster.rkestate
-rm ./kube_config_cluster.yml
+rm -f ./cluster.rkestate
+rm -f ./kube_config_cluster.yml
 echo "Pre-checking done"
 
 

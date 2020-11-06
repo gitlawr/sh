@@ -163,6 +163,44 @@ do_copy()
         echo "Decompressing container images"
         zstd -d --rm "${root_path}/${offline_image_path}.zst" -o "${root_path}/${offline_image_path}" > /dev/null
     fi
+    cd /run/k3os/target/k3os/data
+    mkdir lib bin sbin k3os dev proc etc sys
+    mount --bind /bin bin
+    mount --bind /sbin sbin
+    mount --bind /run/k3os/iso/k3os k3os
+    mount --bind /dev dev
+    mount --bind /proc proc
+    mount --bind /etc etc
+    mount -r --rbind /lib lib
+    mount -r --rbind /sys sys
+    chroot . /bin/bash
+
+    # invoke k3s to create data dir
+    k3s agent --flannel-backend=none &>/dev/null
+    # start containerd
+    /var/lib/rancher/k3s/data/*/bin/contaienrd \
+    -c /var/lib/rancher/k3s/agent/etc/containerd/config.toml \
+    -a /run/k3s/containerd/containerd.sock \
+    --state /run/k3s/containerd \
+    --root /var/lib/rancher/k3s/agent/containerd &
+
+    until ctr version>/dev/null
+    do
+      sleep 1
+    done
+    # import images
+    ctr images import /var/lib/rancher/k3s/agent/images/*
+    rm /var/lib/rancher/k3s/agent/images/*
+    # stop containerd
+    pkill containerd
+    # exit chroot
+    exit
+
+    #cleanup
+    umount bin sbin k3os dev proc etc 
+    mount --make-rslave {lib,sys}
+    umount -R {lib,sys}
+    rm -r lib bin sbin k3os dev proc etc sys
 }
 
 install_grub()

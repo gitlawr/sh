@@ -175,10 +175,10 @@ do_copy()
     mount --bind /etc etc
     mount -r --rbind /lib lib
     mount -r --rbind /sys sys
-    sleep 100
+    #sleep 100
     chroot . /bin/bash <<"EOF"
     # invoke k3s to create data dir
-    k3s agent --flannel-backend=none &>/dev/null
+    k3s agent --no-flannel &>/dev/null || true
     # start containerd
     /var/lib/rancher/k3s/data/*/bin/contaienrd \
     -c /var/lib/rancher/k3s/agent/etc/containerd/config.toml \

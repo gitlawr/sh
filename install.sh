@@ -200,8 +200,10 @@ do_copy()
 EOF
     #cleanup
     umount bin sbin k3os dev proc etc
-    mount --make-rslave {lib,sys}
-    umount -R {lib,sys}
+    mount --make-rslave lib
+    mount --make-rslave sys
+    umount -R lib
+    umount -R sys
     rm -r lib bin sbin k3os dev proc etc sys
 }
 

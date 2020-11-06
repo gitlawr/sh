@@ -164,7 +164,7 @@ do_copy()
         echo "Decompressing container images"
         zstd -d --rm "${root_path}/${offline_image_path}.zst" -o "${root_path}/${offline_image_path}" > /dev/null
     fi
-    echo "Loading images
+    echo "Loading images"
     cd ${root_path}
     mkdir lib bin sbin k3os dev proc etc sys
     mount --bind /bin bin

@@ -186,8 +186,9 @@ do_copy()
     --state /run/k3s/containerd \
     --root /var/lib/rancher/k3s/agent/containerd &
 
-    until ctr version>/dev/null
+    until ctr version
     do
+      ctr ns ls || true
       echo "waiting containerd to be ready"
       sleep 1
     done

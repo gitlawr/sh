@@ -164,8 +164,7 @@ do_copy()
         echo "Decompressing container images"
         zstd -d --rm "${root_path}/${offline_image_path}.zst" -o "${root_path}/${offline_image_path}" > /dev/null
     fi
-    echo "Loading images"
-    sleep 5
+    echo "Loading images
     cd ${root_path}
     mkdir lib bin sbin k3os dev proc etc sys
     mount --bind /bin bin
@@ -176,6 +175,7 @@ do_copy()
     mount --bind /etc etc
     mount -r --rbind /lib lib
     mount -r --rbind /sys sys
+    sleep 100
     chroot . /bin/bash <<"EOF"
     # invoke k3s to create data dir
     k3s agent --flannel-backend=none &>/dev/null

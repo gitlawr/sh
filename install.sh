@@ -165,7 +165,6 @@ do_copy()
         zstd -d --rm "${root_path}/${offline_image_path}.zst" -o "${root_path}/${offline_image_path}" > /dev/null
     fi
     echo "Loading images"
-    sleep 5
     cd ${root_path}
     mkdir lib bin sbin k3os dev proc etc sys
     mount --bind /bin bin
@@ -178,7 +177,7 @@ do_copy()
     mount -r --rbind /sys sys
     chroot . /bin/bash <<"EOF"
     # invoke k3s to set up data dir
-    k3s agent --no-flannel &>/dev/null
+    k3s agent --no-flannel &>/dev/null || true
     # start containerd
     /var/lib/rancher/k3s/data/*/bin/containerd \
     -c /var/lib/rancher/k3s/agent/etc/containerd/config.toml \

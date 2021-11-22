@@ -1,0 +1,5 @@
+k=kubectl
+kc='kubectl -n cattle-system'
+kh='kubectl -n harvester-system'
+kk='kubectl -n kube-system'
+kl='kubectl -n longhorn-system'

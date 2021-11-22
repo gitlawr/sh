@@ -1,5 +1,5 @@
-k=kubectl
-kc='kubectl -n cattle-system'
-kh='kubectl -n harvester-system'
-kk='kubectl -n kube-system'
-kl='kubectl -n longhorn-system'
+alias k=kubectl
+alias kc='kubectl -n cattle-system'
+alias kh='kubectl -n harvester-system'
+alias kk='kubectl -n kube-system'
+alias kl='kubectl -n longhorn-system'

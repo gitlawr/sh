@@ -28,6 +28,7 @@ sudo docker run -d --name gpustack \
     --restart unless-stopped \
     --network host \
     --volume /var/run/docker.sock:/var/run/docker.sock \
+    --volume gpustack-data:/var/lib/gpustack \
     -e GPUSTACK_DEBUG=true \
     -e GPUSTACK_DISABLE_UPDATE_CHECK=true \
     -e GPUSTACK_ENABLE_WORKER=true \

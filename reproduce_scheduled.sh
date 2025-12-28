@@ -81,4 +81,4 @@ nohup ./recreate_instance.sh > create-instance.log 2>&1 &
 nohup ./rewatch.sh > watch-instance.log 2>&1 &
 
 
-echo "Setup completed."
+echo "✅ Reproduce setup completed."

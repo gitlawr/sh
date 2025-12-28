@@ -35,12 +35,14 @@ sudo docker run -d --name gpustack \
     -e GPUSTACK_BOOTSTRAP_PASSWORD=123456 \
     gpustack/gpustack:main
 
-echo "Add debugging..."
+if [ "${DEBUG_ADD_BUS_LOG}" = "1" ]; then
+  echo "Add debugging logs..."
 
-sleep 20
-curl -O https://raw.githubusercontent.com/gitlawr/gpustack/debug-scheduled/gpustack/server/bus.py
-docker cp bus.py gpustack:/usr/local/lib/python3.11/dist-packages/gpustack/server/bus.py
-docker restart gpustack
+  sleep 20
+  curl -O https://raw.githubusercontent.com/gitlawr/gpustack/debug-scheduled/gpustack/server/bus.py
+  docker cp bus.py gpustack:/usr/local/lib/python3.11/dist-packages/gpustack/server/bus.py
+  docker restart gpustack
+fi
 
 echo "Waiting for GPUStack to become ready..."
 

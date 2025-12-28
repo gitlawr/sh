@@ -1,6 +1,6 @@
 #!/bin/bash
 
-### Install docker
+echo "Install docker..."
 
 # Add Docker's official GPG key:
 sudo apt update
@@ -22,7 +22,7 @@ sudo apt update
 
 sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
 
-### Install GPUStack
+echo "Install GPUStack..."
 
 sudo docker run -d --name gpustack \
     --restart unless-stopped \
@@ -33,7 +33,8 @@ sudo docker run -d --name gpustack \
     -e GPUSTACK_BOOTSTRAP_PASSWORD=123456 \
     gpustack/gpustack:main
 
-# Add debugging
+echo "Add debugging..."
+
 sleep 20
 curl -O https://raw.githubusercontent.com/gitlawr/gpustack/debug-scheduled/gpustack/server/bus.py
 docker cp bus.py gpustack:/usr/local/lib/python3.11/dist-packages/gpustack/server/bus.py
@@ -53,24 +54,26 @@ while [ $count -lt $timeout ]; do
   count=$((count+1))
 done
 
-### Add custom backend
+echo "Add custom backend..."
 
 curl -X POST \
   -H "Content-Type: application/json" \
   -d '{"backend_name":"tail-custom","version_configs":{"v1":{"image_name":"ubuntu","run_command":"tail -f /dev/null","custom_framework":"cpu","entrypoint":""}},"default_version":"v1"}' \
   http://localhost/v2/inference-backends
 
-### Deploy a model
+echo "Deploy a model..."
 
 curl -X POST \
   -H "Content-Type: application/json" \
   -d '{"source":"huggingface","huggingface_repo_id":"Qwen/Qwen3-0.6B","replicas":1,"categories":["llm"],"placement_strategy":"spread","cpu_offloading":true,"backend":"tail-custom","backend_version":"v1","restart_on_error":true,"cluster_id":1,"name":"qwen3-0.6b"}' \
   http://localhost/v2/models
 
-### Download and run scripts
+echo "Download and run scripts..."
 
 curl -O https://raw.githubusercontent.com/gitlawr/sh/master/recreate_instance.sh
 curl -O https://raw.githubusercontent.com/gitlawr/sh/master/rewatch.sh
 
 nohup ./recreate_instance.sh > create-instance.log 2>&1 &
 nohup ./rewatch.sh > watch-instance.log 2>&1 &
+
+echo "Setup completed."

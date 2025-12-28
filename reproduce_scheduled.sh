@@ -66,7 +66,7 @@ echo "Deploy a model..."
 
 curl -X POST \
   -H "Content-Type: application/json" \
-  -d '{"source":"huggingface","huggingface_repo_id":"Qwen/Qwen3-0.6B","replicas":1,"categories":["llm"],"placement_strategy":"spread","cpu_offloading":true,"backend":"tail-custom","backend_version":"v1","restart_on_error":true,"cluster_id":1,"name":"qwen3-0.6b"}' \
+  -d '{"source":"huggingface","huggingface_repo_id":"Qwen/Qwen3-0.6B","replicas":1,"categories":["llm"],"placement_strategy":"spread","cpu_offloading":true,"backend":"tail-custom","backend_version":"v1","restart_on_error":false,"cluster_id":1,"name":"qwen3-0.6b"}' \
   http://localhost/v2/models
 
 echo "Download and run scripts..."
@@ -74,7 +74,11 @@ echo "Download and run scripts..."
 curl -O https://raw.githubusercontent.com/gitlawr/sh/master/recreate_instance.sh
 curl -O https://raw.githubusercontent.com/gitlawr/sh/master/rewatch.sh
 
+chmod +x recreate_instance.sh
+chmod +x rewatch.sh
+
 nohup ./recreate_instance.sh > create-instance.log 2>&1 &
 nohup ./rewatch.sh > watch-instance.log 2>&1 &
+
 
 echo "Setup completed."

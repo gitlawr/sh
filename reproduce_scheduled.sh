@@ -74,8 +74,7 @@ echo "Download and run scripts..."
 curl -O https://raw.githubusercontent.com/gitlawr/sh/master/recreate_instance.sh
 curl -O https://raw.githubusercontent.com/gitlawr/sh/master/rewatch.sh
 
-chmod +x recreate_instance.sh
-chmod +x rewatch.sh
+chmod +x recreate_instance.sh rewatch.sh
 
 nohup ./recreate_instance.sh > create-instance.log 2>&1 &
 nohup ./rewatch.sh > watch-instance.log 2>&1 &

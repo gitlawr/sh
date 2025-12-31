@@ -67,10 +67,10 @@ echo
 while true; do
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] ⛔ Sending replicas=0 (stop)..."
   send_replicas 0
-  sleep 0.5
+  sleep 0.1
 
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✅ Sending replicas=1 (start)..."
   send_replicas 1
 
-  sleep 0.5
+  sleep 0.1
 done

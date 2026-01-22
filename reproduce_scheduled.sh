@@ -33,7 +33,7 @@ sudo docker run -d --name gpustack \
     -e GPUSTACK_DISABLE_UPDATE_CHECK=true \
     -e GPUSTACK_ENABLE_WORKER=true \
     -e GPUSTACK_BOOTSTRAP_PASSWORD=123456 \
-    gpustack/gpustack:main
+    gpustack/gpustack:dev
 
 if [ "${DEBUG_ADD_BUS_LOG}" = "1" ]; then
   echo "Add debugging logs..."

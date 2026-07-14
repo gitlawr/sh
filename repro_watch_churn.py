@@ -34,8 +34,13 @@ Usage
 -----
     pip install aiohttp
     export GPUSTACK_URL=https://<server>[:port]
+
+    # auth via token (bearer / api-key)
     export GPUSTACK_TOKEN=<admin api key or bearer/session token>
     python repro_watch_churn.py --clients 60 --duration 600
+
+    # auth via HTTP Basic (admin username/password)
+    python repro_watch_churn.py --admin-password <pw> --clients 60 --duration 600
 
     # harsher: also fire aborted plain (non-watch) list GETs to hit the
     # asyncpg-connect-cancelled -> pool-leak path directly
@@ -44,6 +49,7 @@ Usage
 
 import argparse
 import asyncio
+import base64
 import contextlib
 import os
 import ssl
@@ -258,7 +264,15 @@ async def main():
     ap.add_argument("--token", default=os.environ.get("GPUSTACK_TOKEN"))
     ap.add_argument(
         "--auth", choices=["bearer", "x-api-key"], default="bearer",
-        help="how to send the token",
+        help="how to send --token (ignored when --admin-password is set)",
+    )
+    ap.add_argument(
+        "--admin-username", default=os.environ.get("GPUSTACK_ADMIN_USERNAME", "admin"),
+        help="username for HTTP Basic auth (default: admin)",
+    )
+    ap.add_argument(
+        "--admin-password", default=os.environ.get("GPUSTACK_ADMIN_PASSWORD"),
+        help="authenticate via HTTP Basic auth with this password instead of --token",
     )
     ap.add_argument(
         "--clients", type=int, default=40,
@@ -277,14 +291,27 @@ async def main():
     ap.add_argument("--insecure", action="store_true", help="skip TLS verify")
     args = ap.parse_args()
 
-    if not args.url or not args.token:
-        sys.exit("set --url/--token or GPUSTACK_URL/GPUSTACK_TOKEN")
+    if not args.url:
+        sys.exit("set --url or GPUSTACK_URL")
+    if not args.admin_password and not args.token:
+        sys.exit(
+            "set --admin-password (Basic auth) or --token / GPUSTACK_TOKEN"
+        )
 
     base = args.url.rstrip("/")
-    if args.auth == "bearer":
+    # Basic auth takes precedence when a password is supplied. The
+    # "Basic <base64>" Authorization header slots into the same headers dict
+    # every request already uses -- no other changes.
+    if args.admin_password:
+        raw = f"{args.admin_username}:{args.admin_password}".encode()
+        headers = {"Authorization": "Basic " + base64.b64encode(raw).decode()}
+        auth_desc = f"basic ({args.admin_username})"
+    elif args.auth == "bearer":
         headers = {"Authorization": f"Bearer {args.token}"}
+        auth_desc = "bearer"
     else:
         headers = {"X-API-Key": args.token}
+        auth_desc = "x-api-key"
 
     ssl_ctx = None
     if base.startswith("https"):
@@ -298,7 +325,8 @@ async def main():
     rng = [123456789]
 
     print(
-        f"Target {base} | {args.clients} clients x {len(WATCH_PATHS)} streams "
+        f"Target {base} | auth={auth_desc} | "
+        f"{args.clients} clients x {len(WATCH_PATHS)} streams "
         f"= {args.clients*len(WATCH_PATHS)} concurrent watches | "
         f"{args.list_abort} list-abort | {args.churn} churn workers | "
         f"{args.duration:.0f}s"

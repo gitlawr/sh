@@ -190,7 +190,8 @@ async def churn_worker(worker, base, headers, ssl_ctx, deadline, stats, live_ids
     warned = False
     while time.monotonic() < deadline:
         n += 1
-        name = f"zzz-repro-churn-{worker}-{n}"
+        # Custom backend names must end with '-custom' (server-side validation).
+        name = f"zzz-repro-churn-{worker}-{n}-custom"
         payload = {"backend_name": name, "version_configs": {}}
         timeout = aiohttp.ClientTimeout(total=15)
         try:

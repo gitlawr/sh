@@ -69,6 +69,11 @@ WATCH_PATHS = [
 
 SESSION_COOKIE = "gpustack_session"
 
+# churn backends are named "<PREFIX><RUN_ID>-<worker>-<n>-custom"; the per-run
+# RUN_ID keeps names unique across re-runs so leftovers can't cause 409s.
+CHURN_PREFIX = "zzz-repro-churn-"
+RUN_ID = f"{os.getpid():x}"
+
 
 async def login_for_cookie(base, username, password, ssl_ctx):
     """Log in like the Web UI (POST /auth/login) and return the
@@ -213,8 +218,9 @@ async def churn_worker(worker, base, headers, ssl_ctx, deadline, stats, live_ids
     seen_msgs = set()  # distinct failure reasons already printed
     while time.monotonic() < deadline:
         n += 1
-        # Custom backend names must end with '-custom' (server-side validation).
-        name = f"zzz-repro-churn-{worker}-{n}-custom"
+        # Custom backend names must end with '-custom' (server-side validation);
+        # RUN_ID keeps them unique per run so leftovers don't cause 409s.
+        name = f"{CHURN_PREFIX}{RUN_ID}-{worker}-{n}-custom"
         payload = {"backend_name": name, "version_configs": {}}
         timeout = aiohttp.ClientTimeout(total=15)
         try:
@@ -248,17 +254,30 @@ async def churn_worker(worker, base, headers, ssl_ctx, deadline, stats, live_ids
             await asyncio.sleep(1.0)
 
 
-async def cleanup_leftovers(base, headers, ssl_ctx, live_ids):
-    if not live_ids:
-        return
-    print(f"cleaning up {len(live_ids)} leftover churn backends...")
+async def sweep_churn_backends(base, headers, ssl_ctx):
+    """Delete any leftover 'zzz-repro-churn-*' inference-backends from earlier
+    runs (create succeeded but delete didn't, or the run was interrupted), so
+    a re-run starts clean and doesn't collide with stale names."""
+    url = f"{base}/v2/inference-backends"
+    deleted = 0
     async with aiohttp.ClientSession(headers=headers) as s:
-        for bid in list(live_ids):
-            with contextlib.suppress(Exception):
-                async with s.delete(
-                    f"{base}/v2/inference-backends/{bid}", ssl=ssl_ctx
-                ) as r:
-                    await r.read()
+        try:
+            async with s.get(url, params={"perPage": 1000}, ssl=ssl_ctx) as r:
+                if r.status != 200:
+                    return 0
+                data = await r.json()
+        except Exception:  # noqa: BLE001
+            return 0
+        for item in data.get("items", []):
+            name = item.get("backend_name", "")
+            bid = item.get("id")
+            if name.startswith(CHURN_PREFIX) and bid is not None:
+                with contextlib.suppress(Exception):
+                    async with s.delete(f"{url}/{bid}", ssl=ssl_ctx) as dr:
+                        await dr.read()
+                        if dr.status in (200, 204):
+                            deleted += 1
+    return deleted
 
 
 async def reporter(stats, deadline, interval=5.0):
@@ -369,6 +388,11 @@ async def main():
           "'non-checked-in connection'.\n")
 
     live_ids = set()
+    if args.churn:
+        swept = await sweep_churn_backends(base, headers, ssl_ctx)
+        if swept:
+            print(f"swept {swept} leftover churn backends from earlier runs")
+
     tasks = [asyncio.create_task(reporter(stats, deadline))]
     for i in range(args.clients):
         for path in WATCH_PATHS:
@@ -399,7 +423,7 @@ async def main():
     finally:
         if args.churn:
             with contextlib.suppress(Exception):
-                await cleanup_leftovers(base, headers, ssl_ctx, live_ids)
+                await sweep_churn_backends(base, headers, ssl_ctx)
     print(
         f"\nDONE. total opened={stats.opened} aborted={stats.aborted} "
         f"errors={stats.errors} churn={stats.churn_created}/{stats.churn_deleted}"

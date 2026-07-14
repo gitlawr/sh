@@ -260,7 +260,10 @@ async def reporter(stats, deadline, interval=5.0):
 
 async def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--url", default=os.environ.get("GPUSTACK_URL"))
+    ap.add_argument(
+        "--url", default=os.environ.get("GPUSTACK_URL", "http://127.0.0.1"),
+        help="GPUStack server base URL (default: http://127.0.0.1)",
+    )
     ap.add_argument("--token", default=os.environ.get("GPUSTACK_TOKEN"))
     ap.add_argument(
         "--auth", choices=["bearer", "x-api-key"], default="bearer",

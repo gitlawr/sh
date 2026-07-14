@@ -39,7 +39,7 @@ Usage
     export GPUSTACK_TOKEN=<admin api key or bearer/session token>
     python repro_watch_churn.py --clients 60 --duration 600
 
-    # auth via HTTP Basic (admin username/password)
+    # auth via session cookie (login as admin, like the Web UI)
     python repro_watch_churn.py --admin-password <pw> --clients 60 --duration 600
 
     # harsher: also fire aborted plain (non-watch) list GETs to hit the
@@ -49,7 +49,6 @@ Usage
 
 import argparse
 import asyncio
-import base64
 import contextlib
 import os
 import ssl
@@ -67,6 +66,30 @@ WATCH_PATHS = [
     "/v2/model-files",
     "/v2/inference-backends",
 ]
+
+SESSION_COOKIE = "gpustack_session"
+
+
+async def login_for_cookie(base, username, password, ssl_ctx):
+    """Log in like the Web UI (POST /auth/login) and return the
+    gpustack_session JWT cookie value. Auth (argon2) runs once here instead
+    of on every request, matching how an admin browser session works."""
+    url = f"{base}/auth/login"
+    timeout = aiohttp.ClientTimeout(total=30)
+    async with aiohttp.ClientSession(timeout=timeout) as s:
+        async with s.post(
+            url, data={"username": username, "password": password}, ssl=ssl_ctx
+        ) as r:
+            body = await r.text()
+            if r.status != 200:
+                sys.exit(f"login failed: HTTP {r.status}: {body[:200]}")
+            morsel = r.cookies.get(SESSION_COOKIE)
+            if morsel is None:
+                sys.exit(
+                    "login succeeded but no gpustack_session cookie was set; "
+                    "check the server URL/scheme"
+                )
+            return morsel.value
 
 # Hold-time buckets mimic the observed interval mix in the field log
 # (many sub-second drops, a bulk around 3-6s). (weight, min, max) seconds.
@@ -187,7 +210,7 @@ async def churn_worker(worker, base, headers, ssl_ctx, deadline, stats, live_ids
     """
     create_url = f"{base}/v2/inference-backends"
     n = 0
-    warned = False
+    seen_msgs = set()  # distinct failure reasons already printed
     while time.monotonic() < deadline:
         n += 1
         # Custom backend names must end with '-custom' (server-side validation).
@@ -201,12 +224,11 @@ async def churn_worker(worker, base, headers, ssl_ctx, deadline, stats, live_ids
                 async with s.post(create_url, json=payload, ssl=ssl_ctx) as r:
                     if r.status not in (200, 201):
                         stats.churn_errors += 1
-                        if not warned:
-                            warned = True
-                            body = await r.text()
-                            print(f"[churn] create HTTP {r.status}: {body[:200]}\n"
-                                  f"[churn] disabling churn payload may need "
-                                  f"adjustment for this version.")
+                        body = await r.text()
+                        key = f"{r.status}:{body[:120]}"
+                        if key not in seen_msgs and len(seen_msgs) < 6:
+                            seen_msgs.add(key)
+                            print(f"[churn] create HTTP {r.status}: {body[:200]}")
                         await asyncio.sleep(2.0)
                         continue
                     data = await r.json()
@@ -272,11 +294,12 @@ async def main():
     )
     ap.add_argument(
         "--admin-username", default=os.environ.get("GPUSTACK_ADMIN_USERNAME", "admin"),
-        help="username for HTTP Basic auth (default: admin)",
+        help="username for /auth/login (default: admin)",
     )
     ap.add_argument(
         "--admin-password", default=os.environ.get("GPUSTACK_ADMIN_PASSWORD"),
-        help="authenticate via HTTP Basic auth with this password instead of --token",
+        help="log in with this password and reuse the session cookie (like the "
+             "Web UI) instead of --token",
     )
     ap.add_argument(
         "--clients", type=int, default=40,
@@ -299,23 +322,11 @@ async def main():
         sys.exit("set --url or GPUSTACK_URL")
     if not args.admin_password and not args.token:
         sys.exit(
-            "set --admin-password (Basic auth) or --token / GPUSTACK_TOKEN"
+            "set --admin-password (login -> session cookie) or "
+            "--token / GPUSTACK_TOKEN"
         )
 
     base = args.url.rstrip("/")
-    # Basic auth takes precedence when a password is supplied. The
-    # "Basic <base64>" Authorization header slots into the same headers dict
-    # every request already uses -- no other changes.
-    if args.admin_password:
-        raw = f"{args.admin_username}:{args.admin_password}".encode()
-        headers = {"Authorization": "Basic " + base64.b64encode(raw).decode()}
-        auth_desc = f"basic ({args.admin_username})"
-    elif args.auth == "bearer":
-        headers = {"Authorization": f"Bearer {args.token}"}
-        auth_desc = "bearer"
-    else:
-        headers = {"X-API-Key": args.token}
-        auth_desc = "x-api-key"
 
     ssl_ctx = None
     if base.startswith("https"):
@@ -323,6 +334,22 @@ async def main():
         if args.insecure:
             ssl_ctx.check_hostname = False
             ssl_ctx.verify_mode = ssl.CERT_NONE
+
+    # A password logs in via /auth/login and reuses the session cookie, exactly
+    # like the admin Web UI (argon2 runs once, not per request). A token is sent
+    # as a bearer / api-key header instead.
+    if args.admin_password:
+        jwt = await login_for_cookie(
+            base, args.admin_username, args.admin_password, ssl_ctx
+        )
+        headers = {"Cookie": f"{SESSION_COOKIE}={jwt}"}
+        auth_desc = f"session cookie ({args.admin_username})"
+    elif args.auth == "bearer":
+        headers = {"Authorization": f"Bearer {args.token}"}
+        auth_desc = "bearer"
+    else:
+        headers = {"X-API-Key": args.token}
+        auth_desc = "x-api-key"
 
     stats = Stats()
     deadline = time.monotonic() + args.duration
